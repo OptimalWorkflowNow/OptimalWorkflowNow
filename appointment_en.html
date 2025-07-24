@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Appointment Booking</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Your existing CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"] {
+            width: calc(100% - 22px);
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #message {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .language-switcher {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .language-switcher a {
+            margin: 0 5px;
+            text-decoration: none;
+            color: #007BFF;
+            font-weight: bold;
+        }
+        .language-switcher a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="language-switcher">
+    <a href="appointment_en.html">English</a> | <a href="appointment_de.html">Deutsch</a>
+</div>
+
+<div class="container">
+    <h2>Book an Appointment</h2>
+    <p>Choose a convenient time for a consultation and provide your details.</p>
+
+    <form id="appointmentForm">
+        <div class="form-group">
+            <label for="name">Your Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Your Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="phone">Your Phone:</label>
+            <input type="tel" id="phone" name="phone" placeholder="+49 (XXX) XXX-XX-XX" required>
+        </div>
+        <div class="form-group">
+            <label for="datetime">Choose Date and Time:</label>
+            <input type="text" id="datetime" name="datetime" required>
+        </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="telegramNotifications" name="telegramNotifications">
+            <label for="telegramNotifications">Receive Telegram Notifications</label>
+        </div>
+        <button type="submit">Book Now</button>
+    </form>
+    <div id="message"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/en.js"></script> <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const appointmentForm = document.getElementById('appointmentForm');
+    const messageDiv = document.getElementById('message');
+    const datetimeInput = document.getElementById('datetime');
+
+    let fp;
+
+    async function fetchAvailableSlots() {
+      // !!! IMPORTANT: Replace this URL with your n8n Webhook URL for fetching slots !!!
+      const getSlotsWebhookUrl = 'https://<your_n8n_domain>/webhook/get-available-slots';
+
+      try {
+        const response = await axios.get(getSlotsWebhookUrl);
+        if (response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching available slots:', error);
+        messageDiv.textContent = 'Could not load available slots. Please try again later.';
+        messageDiv.style.color = 'red';
+        return [];
+      }
+    }
+
+    fetchAvailableSlots().then(availableSlots => {
+      fp = flatpickr(datetimeInput, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minDate: "today",
+        locale: "en",
+        enable: availableSlots,
+        onReady: function(selectedDates, dateStr, instance) {
+          if (availableSlots.length === 0) {
+            messageDiv.textContent = 'Unfortunately, there are no available slots for the near future.';
+            messageDiv.style.color = 'orange';
+            datetimeInput.disabled = true;
+            appointmentForm.querySelector('button[type="submit"]').disabled = true;
+          }
+        }
+      });
+    });
+
+    appointmentForm.addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      const formData = new FormData(appointmentForm);
+      const data = Object.fromEntries(formData.entries());
+
+      data.telegramNotifications = !!data.telegramNotifications;
+
+      // !!! IMPORTANT: Replace this URL with your n8n Webhook URL for submitting the appointment !!!
+      const submitAppointmentWebhookUrl = 'https://<your_n8n_domain>/webhook/submit-appointment';
+
+      axios.post(submitAppointmentWebhookUrl, data)
+        .then(response => {
+          messageDiv.textContent = 'Thank you! Your booking request has been received. Our manager will contact you for confirmation.';
+          messageDiv.style.color = 'green';
+          appointmentForm.reset();
+          if (fp) {
+            fp.clear();
+          }
+        })
+        .catch(error => {
+          console.error('Error submitting form:', error);
+          messageDiv.textContent = 'An error occurred while submitting your request. Please try again.';
+          messageDiv.style.color = 'red';
+        });
+    });
+  });
+</script>
+</body>
+</html>
