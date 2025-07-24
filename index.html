@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mein Portfolio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .language-switcher {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .language-switcher a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #007BFF;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .language-switcher a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+<div class="language-switcher">
+    <a href="index_en.html">English</a> | <a href="index_de.html">Deutsch</a>
+</div>
+
+<div class="container">
+    <h1>Willkommen in meinem n8n Lösungsportfolio</h1>
+    <p>Ich bin spezialisiert auf die Automatisierung von Geschäftsprozessen mit n8n. Meine Lösungen helfen Ihrem Unternehmen, effizienter und sicherer zu werden, basierend auf meiner Erfahrung mit großen Unternehmenssystemen.</p>
+    <p>Um die Möglichkeiten zu demonstrieren, habe ich ein Demo-System für die Online-Terminbuchung erstellt.</p>
+    <a href="appointment_en.html" class="button">Demo-Termin buchen (English)</a>
+    <br><br>
+    <a href="appointment_de.html" class="button">Termin für Demo buchen (Deutsch)</a>
+</div>
+</body>
+</html>
