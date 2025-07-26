@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f4f4f4; color: #333; text-align: center; }
+        .container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); max-width: 600px; width: 90%; }
+        h1 { color: #ffc107; margin-bottom: 20px; } /* Желтый цвет для предупреждения/ошибки */
+        p { line-height: 1.6; margin-bottom: 10px; }
+        .lang-switcher { margin-top: 30px; font-size: 0.9em; }
+        .lang-switcher button { background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer; font-size: 1em; margin: 0 5px; }
+        .lang-switcher button:hover { color: #0056b3; }
+        .lang-switcher button.active { font-weight: bold; color: #333; text-decoration: none; cursor: default; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 id="errorTitle"></h1>
+    <p id="errorText1"></p>
+    <p id="errorText2"></p>
+    <div class="lang-switcher">
+        <p>
+            <button id="langEn" class="active">English</button> |
+            <button id="langDe">Deutsch</button>
+        </p>
+    </div>
+</div>
+
+<script>
+  const content = {
+    en: {
+      title: '⚠️ System Error Occurred',
+      text1: 'An unexpected error occurred while processing your request. We apologize for the inconvenience.',
+      text2: 'Please contact the administrator immediately and provide them with the time and date of your action so they can process it manually. Your action might not have been completed successfully.',
+      pageTitle: 'Error'
+    },
+    de: {
+      title: '⚠️ Systemfehler aufgetreten',
+      text1: 'Bei der Bearbeitung Ihrer Anfrage ist ein unerwarteter Fehler aufgetreten. Wir entschuldigen uns für die Unannehmlichkeiten.',
+      text2: 'Bitte kontaktieren Sie umgehend den Administrator und teilen Sie ihm Datum und Uhrzeit Ihrer Aktion mit, damit diese manuell bearbeitet werden kann. Ihre Aktion wurde möglicherweise nicht erfolgreich abgeschlossen.',
+      pageTitle: 'Fehler'
+    }
+  };
+
+  let currentLang = 'en'; // Дефолтный язык
+
+  function updateContent() {
+    document.getElementById('pageTitle').textContent = content[currentLang].pageTitle;
+    document.getElementById('errorTitle').textContent = content[currentLang].title;
+    document.getElementById('errorText1').textContent = content[currentLang].text1;
+    document.getElementById('errorText2').textContent = content[currentLang].text2;
+
+    // Обновляем активность кнопок
+    document.getElementById('langEn').classList.toggle('active', currentLang === 'en');
+    document.getElementById('langDe').classList.toggle('active', currentLang === 'de');
+    document.documentElement.lang = currentLang; // Обновляем атрибут lang для SEO
+  }
+
+  // Проверяем URL на наличие параметра 'lang' при загрузке страницы
+  function getQueryParam(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const langParam = getQueryParam('lang');
+    if (langParam && (langParam === 'en' || langParam === 'de')) { // Проверяем на 'en' или 'de'
+      currentLang = langParam;
+    }
+    updateContent();
+
+    document.getElementById('langEn').addEventListener('click', () => {
+      currentLang = 'en';
+      updateContent();
+    });
+
+    document.getElementById('langDe').addEventListener('click', () => {
+      currentLang = 'de';
+      updateContent();
+    });
+  });
+</script>
+</body>
+</html>
