@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Your Appointment Canceled</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f4f4f4; color: #333; text-align: center; }
+        .container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); max-width: 600px; width: 90%; }
+        h1 { color: #dc3545; margin-bottom: 20px; } /* Красный цвет для отмены */
+        p { line-height: 1.6; margin-bottom: 10px; }
+        .lang-switcher { margin-top: 30px; font-size: 0.9em; }
+        .lang-switcher button { background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer; font-size: 1em; margin: 0 5px; }
+        .lang-switcher button.hover { color: #0056b3; }
+        .lang-switcher button.active { font-weight: bold; color: #333; text-decoration: none; cursor: default; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 id="cancellationTitle"></h1>
+    <p id="cancellationText1"></p>
+    <p id="cancellationText2"></p>
+    <div class="lang-switcher">
+        <p>
+            <button id="langEn" class="active">English</button> |
+            <button id="langDe">Deutsch</button>
+        </p>
+    </div>
+</div>
+
+<script>
+  const content = {
+    en: {
+      title: '❌ Your Appointment Has Been Canceled',
+      text1: 'We regret to inform you that your appointment has been canceled.',
+      text2: 'If you have any questions or wish to reschedule, please contact us directly.',
+      pageTitle: 'Appointment Canceled'
+    },
+    de: {
+      title: '❌ Ihr Termin wurde storniert',
+      text1: 'Wir bedauern, Ihnen mitteilen zu müssen, dass Ihr Termin storniert wurde.',
+      text2: 'Bei Fragen oder wenn Sie einen neuen Termin vereinbaren möchten, kontaktieren Sie uns bitte direkt.',
+      pageTitle: 'Termin storniert'
+    }
+  };
+
+  let currentLang = 'en'; // Дефолтный язык
+
+  function updateContent() {
+    document.getElementById('pageTitle').textContent = content[currentLang].pageTitle;
+    document.getElementById('cancellationTitle').textContent = content[currentLang].title;
+    document.getElementById('cancellationText1').textContent = content[currentLang].text1;
+    document.getElementById('cancellationText2').textContent = content[currentLang].text2;
+
+    // Обновляем активность кнопок
+    document.getElementById('langEn').classList.toggle('active', currentLang === 'en');
+    document.getElementById('langDe').classList.toggle('active', currentLang === 'de');
+    document.documentElement.lang = currentLang; // Обновляем атрибут lang для SEO
+  }
+
+  // Проверяем URL на наличие параметра 'lang' при загрузке страницы
+  function getQueryParam(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const langParam = getQueryParam('lang');
+    if (langParam && (langParam === 'en' || langParam === 'de')) { // Проверяем на 'en' или 'de'
+      currentLang = langParam;
+    }
+    updateContent();
+
+    document.getElementById('langEn').addEventListener('click', () => {
+      currentLang = 'en';
+      updateContent();
+    });
+
+    document.getElementById('langDe').addEventListener('click', () => {
+      currentLang = 'de';
+      updateContent();
+    });
+  });
+</script>
+</body>
+</html>
