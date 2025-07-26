@@ -156,12 +156,27 @@
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
 
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/en.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+<script type="text/javascript">
+  function onTelegramAuth(user) {
+    let id = document.getElementById('telegramChatId');
+    id.value =  user.id;
+  }
+</script>
+
 <script>
+  let id = document.getElementById('telegramChatId');
+  id.value = '864856011';
   // !!! IMPORTANT: Replace these URLs with your actual n8n Webhook URLs !!!
   const N8N_WEBHOOK_URL_AVAILABLE_SLOTS = 'http://localhost:5678/webhook/get-available-slots';
-  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'ВАШ_N8N_WEBHOOK_URL_ДЛЯ_ЗАПИСИ';
+  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'http://localhost:5678/webhook/appointment';
 
   let flatpickrInstance;
+  let parsedAvailableDates = []; // <--- ОБЪЯВЛЯЕМ ЗДЕСЬ, В ГЛОБАЛЬНОЙ ОБЛАСТИ ВИДИМОСТИ
 
   function showMessage(msg, type) {
     const messageDiv = document.getElementById('message');
@@ -186,9 +201,8 @@
       console.log("Raw fetched available slots (from n8n):", availableSlotsStrings);
 
       // --- Parsing ISO strings to Date objects for Flatpickr's 'enable' option ---
-      const parsedAvailableDates = availableSlotsStrings.map(slotStr => {
-        // Parse the ISO string. If it's YYYY-MM-DDTHH:mm:ss (no Z or offset),
-        // JavaScript's new Date() will interpret it as local time. This is generally desired for Flatpickr.
+      // ИСПОЛЬЗУЕМ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ parsedAvailableDates, НЕ ПЕРЕОБЪЯВЛЯЕМ ЕЁ ЗДЕСЬ
+      parsedAvailableDates = availableSlotsStrings.map(slotStr => {
         const tempDate = new Date(slotStr);
 
         if (isNaN(tempDate.getTime())) {
@@ -196,9 +210,6 @@
           return null;
         }
 
-        // Create a NEW Date object, explicitly setting seconds and milliseconds to 0.
-        // This ensures perfect alignment with Flatpickr's minuteIncrement.
-        // We use the local time components (hours, minutes, etc.) from the parsed tempDate.
         const cleanDate = new Date(
           tempDate.getFullYear(),
           tempDate.getMonth(),
@@ -209,11 +220,10 @@
           0   // Set milliseconds to 0
         );
         return cleanDate;
-      }).filter(date => date !== null); // Filter out any invalid dates
+      }).filter(date => date !== null);
 
       console.log("Parsed and Cleaned available slots (for Flatpickr's 'enable'):", parsedAvailableDates);
 
-      // *** NEW DEBUGGING LOGS FOR EACH PARSED DATE TO VERIFY PRECISION ***
       if (parsedAvailableDates.length > 0) {
         console.group("Detailed view of Parsed and Cleaned Slots:");
         parsedAvailableDates.forEach((d, index) => {
@@ -223,10 +233,8 @@
       } else {
         console.log("No available slots after parsing and cleaning.");
       }
-      // *** END NEW DEBUGGING LOGS ***
 
 
-      // Destroy existing Flatpickr instance if it exists before re-initializing
       if (flatpickrInstance) {
         console.log("Destroying existing Flatpickr instance.");
         flatpickrInstance.destroy();
@@ -237,44 +245,30 @@
         noCalendar: false,
         dateFormat: "Y-m-d H:i", // Display format: "YYYY-MM-DD HH:MM"
         time_24hr: true,
-        minDate: new Date().fp_incr(1), // Start from tomorrow (adjust if today's slots are allowed)
-        minuteIncrement: 30, // Flatpickr generates time slots in 30 minute increments
-        locale: (document.documentElement.lang === 'de' ? 'de' : 'en'), // Set locale dynamically
+        minDate: new Date().fp_incr(1),
+        minuteIncrement: 30,
+        locale: (document.documentElement.lang === 'de' ? 'de' : 'en'),
 
-        // --- Flatpickr Logic for Enabling/Disabling Dates and Times ---
-        // Step 1: Disable general times outside working hours and weekends. This is a coarse filter.
         disable: [
           function(date) {
-            // This 'date' object from Flatpickr is in the client's local timezone.
             const localHour = date.getHours();
             const localMinute = date.getMinutes();
-            const dayOfWeek = date.getDay(); // Sunday is 0, Saturday is 6
+            const dayOfWeek = date.getDay();
 
-            // Disable before 9:00 AM and from 5:00 PM onwards (local time for the client)
-            // Note: This 'disable' rule is for general appearance. The 'enable' array has final say.
             if (localHour < 9 || localHour >= 17) {
-              return true; // Disable if outside 9 AM - 4:59 PM range
+              return true;
             }
-
-            // Disable minutes that are not 00 or 30
             if (localMinute % 30 !== 0) {
-              return true; // Disable if not on the hour or half-hour
+              return true;
             }
-
-            // Disable weekends
             if (dayOfWeek === 0 || dayOfWeek === 6) {
-              return true; // Disable Sunday or Saturday
+              return true;
             }
-
-            return false; // Otherwise, do not disable based on these general rules
+            return false;
           }
         ],
-        // Step 2: Explicitly enable only the parsed available slots received from n8n.
-        // 'enable' takes precedence over 'disable'. This is the critical part for exact matches.
-        enable: parsedAvailableDates,
-        // --- END Flatpickr Logic ---
+        enable: parsedAvailableDates, // Теперь Flatpickr будет использовать эту глобальную переменную
 
-        // --- Flatpickr Hooks for Debugging and UI ---
         onReady: function(selectedDates, dateStr, instance) {
           console.log("Flatpickr is ready. Selected dates:", selectedDates, "Date string:", dateStr);
           if (parsedAvailableDates.length === 0) {
@@ -294,37 +288,33 @@
           console.log("Flatpickr selection changed:", dateStr);
           if (selectedDates.length > 0) {
             const selectedDate = selectedDates[0];
-            // Create a clean version of the selected date for comparison, matching the 'enable' array's precision
             const cleanSelectedDate = new Date(
               selectedDate.getFullYear(),
               selectedDate.getMonth(),
               selectedDate.getDate(),
               selectedDate.getHours(),
               selectedDate.getMinutes(),
-              0, 0 // Ensure seconds and milliseconds are 0 for consistent comparison
+              0, 0
             );
 
-            // Check if the cleaned selected date is present in our list of truly available slots
             const isValidSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDate.getTime());
             if (!isValidSelection) {
               console.warn("User selected a date/time not in available slots. This should ideally not happen if enable/disable works correctly.");
-              // Option: Clear the invalid selection automatically
               instance.clear();
               showMessage((document.documentElement.lang === 'de' ? 'Bitte wählen Sie nur verfügbare Zeitfenster.' : 'Please select only available time slots.'), 'error');
             } else {
               console.log("Selected date/time IS in available slots:", dateStr);
-              showMessage('', ''); // Clear message if selection is valid
+              showMessage('', '');
             }
           }
         },
-        // Robust onParseConfig to prevent errors
         onParseConfig: function(config) {
           console.log("Flatpickr onParseConfig - FULL config object:", config);
 
           let enableLog = "undefined/null";
           if (config && typeof config.enable !== 'undefined' && config.enable !== null) {
             if (Array.isArray(config.enable)) {
-              enableLog = config.enable.map(d => d.toLocaleString()).slice(0, 5); // Log local string for readability
+              enableLog = config.enable.map(d => d.toLocaleString()).slice(0, 5);
             } else {
               enableLog = config.enable;
             }
@@ -343,88 +333,71 @@
 
           return config;
         },
-        // onDayCreate can be noisy, uncomment for very deep debugging only
-        /*
-        onDayCreate: function(dObj, dStr, fp, dayElem) {
-            const slotTime = new Date(dObj.getFullYear(), dObj.getMonth(), dObj.getDate(), dObj.getHours(), dObj.getMinutes(), 0, 0);
-            const isDisabledByFlatpickr = dayElem.classList.contains('flatpickr-disabled');
-            const isAvailableInOurData = parsedAvailableDates.some(enabledDate => enabledDate.getTime() === slotTime.getTime());
-
-            // Log only for the first few days to limit output
-            if (dObj.getDate() === new Date().fp_incr(1).getDate()) { // Only for tomorrow
-                console.log(`DayCreate - ${slotTime.toLocaleString()} | isDisabledByFlatpickr: ${isDisabledByFlatpickr} | isAvailableInOurData: ${isAvailableInOurData}`);
-            }
-        }
-        */
       });
 
     } catch (error) {
       console.error('Error fetching available slots:', error);
-      showMessage((document.documentElement.lang === 'de' ? 'Konnte verfügbare Slots nicht laden. Bitte versuchen Sie es später erneut.' : 'Could not load available slots. Please try again later.'), 'error');
+      showMessage((document.documentElement.lang === 'de' ? 'Konnte verfügbare Slots nicht laden. Bitte versuchen Sie es später erneut.' : 'Could not load available slots. Please try again later.'), "error");
       datetimeInput.disabled = true;
       submitButton.disabled = true;
     }
   }
 
-  // --- DOMContentLoaded for initial setup and loading slots ---
   document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM content loaded. Initializing form and loading slots.");
     const appointmentForm = document.getElementById('appointmentForm');
     const datetimeInput = document.getElementById('datetime');
     const submitButton = document.querySelector('#appointmentForm button[type="submit"]');
 
-    // Initial state: disable input and button until slots are loaded
     datetimeInput.disabled = true;
     submitButton.disabled = true;
 
     appointmentForm.addEventListener('submit', async function(event) {
       event.preventDefault();
 
-      const selectedDateTime = flatpickrInstance.selectedDates[0]; // Get Date object from Flatpickr instance
+      const selectedDateTime = flatpickrInstance.selectedDates[0];
 
       if (!selectedDateTime) {
         showMessage((document.documentElement.lang === 'de' ? 'Bitte wählen Sie ein Datum und eine Uhrzeit für Ihren Termin aus.' : "Please select a date and time for your appointment."), "error");
         return;
       }
 
-      // Before sending, ensure the selected time is actually valid based on our parsed slots
       const cleanSelectedDateTimeForValidation = new Date(
         selectedDateTime.getFullYear(),
         selectedDateTime.getMonth(),
         selectedDateTime.getDate(),
         selectedDateTime.getHours(),
         selectedDateTime.getMinutes(),
-        0, 0 // Crucial for matching with parsedAvailableDates
+        0, 0
       );
+      // Теперь parsedAvailableDates ДОСТУПЕН здесь!
       const isValidFinalSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDateTimeForValidation.getTime());
 
       if (!isValidFinalSelection) {
         showMessage((document.documentElement.lang === 'de' ? 'Выбранное время недоступно. Пожалуйста, выберите доступное время.' : 'The selected time is not available. Please choose an available slot.'), "error");
         console.error("Attempted to submit an unavailable slot!");
-        return; // Prevent submission of invalid slot
+        return;
       }
-
 
       const formData = new FormData(this);
       const data = Object.fromEntries(formData.entries());
 
       data.telegramNotifications = !!data.telegramNotifications;
-      // Format for n8n: YYYY-MM-DDTHH:mm:ss (without Z for local time interpretation on n8n side if preferred)
       data.dateTime = selectedDateTime.toISOString().slice(0, 19);
 
-      submitButton.disabled = true; // Disable button during submission
+      submitButton.disabled = true;
       showMessage((document.documentElement.lang === 'de' ? 'Ihre Buchung wird übermittelt...' : "Submitting your booking..."), "info");
 
       try {
         const response = await axios.post(N8N_WEBHOOK_URL_BOOK_APPOINTMENT, data);
 
-        const result = response.data[0] || {}; // n8n usually returns an array of objects
+        const result = response.data[0] || {};
 
-        if (response.status >= 200 && response.status < 300) { // Check for 2xx success codes
+        if (response.status >= 200 && response.status < 300) {
           showMessage((document.documentElement.lang === 'de' ? 'Vielen Dank! Ihre Buchungsanfrage wurde empfangen. Unser Manager wird Sie zur Bestätigung kontaktieren.' : "Thank you! Your booking request has been received. Our manager will contact you for confirmation."), "success");
           appointmentForm.reset();
-          datetimeInput.value = ''; // Clear selected datetime
-          await loadAvailableSlots(); // Reload available slots after successful booking
+          datetimeInput.value = '';
+          await loadAvailableSlots();
         } else {
           const errorMessage = result.message || (document.documentElement.lang === 'de' ? `Termin konnte nicht erstellt werden. Status: ${response.status}` : `Failed to create appointment. Status: ${response.status}`);
           showMessage(errorMessage, "error");
@@ -434,14 +407,13 @@
         console.error('Error submitting form:', error);
         const errorMessage = error.response && error.response.data &&
           (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data))
-          || (document.documentElement.lang === 'de' ? "Unbekannter Netzwerk- oder Serverfehler." : "Unknown network or server error.");
+          || (document.documentElement.lang === 'de' ? "Unbekannter Netzwerk- или Serverfehler." : "Unknown network or server error.");
         showMessage((document.documentElement.lang === 'de' ? `Beim Senden Ihrer Anfrage ist ein Fehler aufgetreten: ${errorMessage}. Bitte versuchen Sie es erneut.` : `An error occurred while submitting your request: ${errorMessage}. Please try again.`), "error");
       } finally {
-        submitButton.disabled = false; // Re-enable button
+        submitButton.disabled = false;
       }
     });
 
-    // Initially load available slots
     loadAvailableSlots();
   });
 </script>
