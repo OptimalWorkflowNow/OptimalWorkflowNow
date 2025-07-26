@@ -118,12 +118,12 @@
     </style>
 </head>
 <body>
-<div class="language-switcher">
-    <a href="appointment_en.html">English</a> | <a href="appointment_de.html">Deutsch</a>
-</div>
 
 <div class="container">
     <h2>Termin buchen</h2>
+    <div class="language-switcher">
+        <a href="appointment_en.html">English</a> | <a href="appointment_de.html">Deutsch</a>
+    </div>
     <p>Wählen Sie einen passenden Termin für eine Beratung und geben Sie Ihre Daten ein.</p>
 
     <form id="appointmentForm">
@@ -147,6 +147,14 @@
             <input type="checkbox" id="telegramNotifications" name="telegramNotifications">
             <label for="telegramNotifications">Telegram-Benachrichtigungen erhalten</label>
         </div>
+        <input type="hidden" id="telegramChatId" name="telegramChatId">
+        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        <script type="text/javascript">
+          function onTelegramAuth(user) {
+            let id = document.getElementById('telegramChatId');
+            id.value =  user.id;
+          }
+        </script>
         <button type="submit">Jetzt buchen</button>
     </form>
     <div id="message"></div>
@@ -155,18 +163,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
-
-
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/en.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
-<script type="text/javascript">
-  function onTelegramAuth(user) {
-    let id = document.getElementById('telegramChatId');
-    id.value =  user.id;
-  }
-</script>
 
 <script>
   let id = document.getElementById('telegramChatId');
@@ -176,7 +174,7 @@
   const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'http://localhost:5678/webhook/appointment';
 
   let flatpickrInstance;
-  let parsedAvailableDates = []; // <--- ОБЪЯВЛЯЕМ ЗДЕСЬ, В ГЛОБАЛЬНОЙ ОБЛАСТИ ВИДИМОСТИ
+  let parsedAvailableDates = [];
 
   function showMessage(msg, type) {
     const messageDiv = document.getElementById('message');
@@ -186,7 +184,6 @@
   }
 
   async function loadAvailableSlots() {
-    console.log("loadAvailableSlots function started.");
     showMessage("Loading available slots...", "info");
 
     const datetimeInput = document.getElementById('datetime');
@@ -201,7 +198,6 @@
       console.log("Raw fetched available slots (from n8n):", availableSlotsStrings);
 
       // --- Parsing ISO strings to Date objects for Flatpickr's 'enable' option ---
-      // ИСПОЛЬЗУЕМ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ parsedAvailableDates, НЕ ПЕРЕОБЪЯВЛЯЕМ ЕЁ ЗДЕСЬ
       parsedAvailableDates = availableSlotsStrings.map(slotStr => {
         const tempDate = new Date(slotStr);
 
@@ -221,9 +217,6 @@
         );
         return cleanDate;
       }).filter(date => date !== null);
-
-      console.log("Parsed and Cleaned available slots (for Flatpickr's 'enable'):", parsedAvailableDates);
-
       if (parsedAvailableDates.length > 0) {
         console.group("Detailed view of Parsed and Cleaned Slots:");
         parsedAvailableDates.forEach((d, index) => {
@@ -236,7 +229,6 @@
 
 
       if (flatpickrInstance) {
-        console.log("Destroying existing Flatpickr instance.");
         flatpickrInstance.destroy();
       }
 
@@ -267,7 +259,7 @@
             return false;
           }
         ],
-        enable: parsedAvailableDates, // Теперь Flatpickr будет использовать эту глобальную переменную
+        enable: parsedAvailableDates,
 
         onReady: function(selectedDates, dateStr, instance) {
           console.log("Flatpickr is ready. Selected dates:", selectedDates, "Date string:", dateStr);
@@ -282,10 +274,9 @@
           }
         },
         onOpen: function() {
-          console.log("Flatpickr calendar opened.");
+
         },
         onChange: function(selectedDates, dateStr, instance) {
-          console.log("Flatpickr selection changed:", dateStr);
           if (selectedDates.length > 0) {
             const selectedDate = selectedDates[0];
             const cleanSelectedDate = new Date(
@@ -300,7 +291,7 @@
             const isValidSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDate.getTime());
             if (!isValidSelection) {
               console.warn("User selected a date/time not in available slots. This should ideally not happen if enable/disable works correctly.");
-              instance.clear();
+              // instance.clear();
               showMessage((document.documentElement.lang === 'de' ? 'Bitte wählen Sie nur verfügbare Zeitfenster.' : 'Please select only available time slots.'), 'error');
             } else {
               console.log("Selected date/time IS in available slots:", dateStr);
@@ -309,8 +300,6 @@
           }
         },
         onParseConfig: function(config) {
-          console.log("Flatpickr onParseConfig - FULL config object:", config);
-
           let enableLog = "undefined/null";
           if (config && typeof config.enable !== 'undefined' && config.enable !== null) {
             if (Array.isArray(config.enable)) {
@@ -344,7 +333,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM content loaded. Initializing form and loading slots.");
     const appointmentForm = document.getElementById('appointmentForm');
     const datetimeInput = document.getElementById('datetime');
     const submitButton = document.querySelector('#appointmentForm button[type="submit"]');
@@ -370,12 +358,10 @@
         selectedDateTime.getMinutes(),
         0, 0
       );
-      // Теперь parsedAvailableDates ДОСТУПЕН здесь!
       const isValidFinalSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDateTimeForValidation.getTime());
 
       if (!isValidFinalSelection) {
-        showMessage((document.documentElement.lang === 'de' ? 'Выбранное время недоступно. Пожалуйста, выберите доступное время.' : 'The selected time is not available. Please choose an available slot.'), "error");
-        console.error("Attempted to submit an unavailable slot!");
+        showMessage((document.documentElement.lang === 'de' ? 'Die ausgewählte Zeit ist nicht verfügbar. Bitte wählen Sie eine verfügbare Zeit aus.' : 'The selected time is not available. Please choose an available slot.'), "error");
         return;
       }
 
