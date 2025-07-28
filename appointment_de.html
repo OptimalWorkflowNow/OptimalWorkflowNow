@@ -144,15 +144,18 @@
             <input type="text" id="datetime" name="datetime" required>
         </div>
         <div class="form-group checkbox-group">
-            <input type="checkbox" id="telegramNotifications" name="telegramNotifications">
+            <input type="checkbox" id="telegramNotifications" name="telegramNotifications" disabled>
             <label for="telegramNotifications">Telegram-Benachrichtigungen erhalten</label>
         </div>
         <input type="hidden" id="telegramChatId" name="telegramChatId">
-        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        <script src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
         <script type="text/javascript">
           function onTelegramAuth(user) {
             let id = document.getElementById('telegramChatId');
             id.value =  user.id;
+
+            const checkbox = document.getElementById('telegramNotifications');
+            checkbox.disabled = false;
           }
         </script>
         <button type="submit">Jetzt buchen</button>
@@ -168,8 +171,8 @@
 
 <script>
   // !!! IMPORTANT: Replace these URLs with your actual n8n Webhook URLs !!!
-  const N8N_WEBHOOK_URL_AVAILABLE_SLOTS = 'http://localhost/webhook/get-available-slots';
-  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'http://localhost/webhook/appointment';
+  const N8N_WEBHOOK_URL_AVAILABLE_SLOTS = 'https://optimalworkflownow.duckdns.org/webhook/get-available-slots';
+  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'https://optimalworkflownow.duckdns.org/webhook/appointment';
 
   let flatpickrInstance;
   let parsedAvailableDates = [];
