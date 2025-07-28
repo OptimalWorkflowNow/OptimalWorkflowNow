@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terminbuchung - Deutsch</title>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         /* Your existing CSS styles (same for both languages) */
@@ -124,7 +125,7 @@
     <div class="language-switcher">
         <a href="appointment_en.html">English</a> | <a href="appointment_de.html">Deutsch</a>
     </div>
-    <p>Wählen Sie einen passenden Termin für eine Beratung und geben Sie Ihre Daten ein.</p>
+    <p>Wählen Sie einen passenden Zeitpunkt für eine Beratung und geben Sie Ihre Daten ein.</p>
 
     <form id="appointmentForm">
         <div class="form-group">
@@ -140,265 +141,159 @@
             <input type="tel" id="phone" name="phone" placeholder="+49 (XXX) XXX-XX-XX" required>
         </div>
         <div class="form-group">
-            <label for="datetime">Datum und Uhrzeit wählen:</label>
-            <input type="text" id="datetime" name="datetime" required>
+            <label for="date">Datum wählen:</label>
+            <input type="date" id="date" required>
+        </div>
+        <div class="form-group">
+            <label for="time">Uhrzeit wählen:</label>
+            <select id="time" disabled required>
+                <option value="">-- Uhrzeit wählen --</option>
+            </select>
         </div>
         <div class="form-group checkbox-group">
-            <input type="checkbox" id="telegramNotifications" name="telegramNotifications">
+            <input type="checkbox" id="telegramNotifications" name="telegramNotifications" disabled>
             <label for="telegramNotifications">Telegram-Benachrichtigungen erhalten</label>
         </div>
         <input type="hidden" id="telegramChatId" name="telegramChatId">
-        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        <script src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="n8npoctest_bot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
         <script type="text/javascript">
           function onTelegramAuth(user) {
             let id = document.getElementById('telegramChatId');
             id.value =  user.id;
+
+            const checkbox = document.getElementById('telegramNotifications');
+            checkbox.disabled = false;
           }
         </script>
-        <button type="submit">Jetzt buchen</button>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="dataProcessingConsent" name="dataProcessingConsent" required>
+            <label for="dataProcessingConsent">
+                Ich stimme der <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a> und der Verarbeitung meiner personenbezogenen Daten zu.
+            </label><br><br>
+        </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="newsletterConsent" name="newsletterConsent" required>
+            <label for="newsletterConsent">
+                Ich möchte Informationen und Angebote per E-Mail erhalten.
+            </label><br><br>
+        </div>
+        <p id="result"></p>
+        <button type="submit" id="submitButton" disabled>Jetzt buchen</button>
     </form>
-    <div id="message"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/en.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
 <script>
-  // !!! IMPORTANT: Replace these URLs with your actual n8n Webhook URLs !!!
-  const N8N_WEBHOOK_URL_AVAILABLE_SLOTS = 'http://localhost/webhook/get-available-slots';
-  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'http://localhost/webhook/appointment';
+  const N8N_WEBHOOK_URL_AVAILABLE_SLOTS = 'https://optimalworkflownow.duckdns.org/webhook/get-available-slots';
+  const N8N_WEBHOOK_URL_BOOK_APPOINTMENT = 'https://optimalworkflownow.duckdns.org/webhook/appointment';
 
-  let flatpickrInstance;
-  let parsedAvailableDates = [];
+  const dateInput = document.getElementById("date");
+  const timeSelect = document.getElementById("time");
+  const submitBtn = document.getElementById("submitButton");
+  const form = document.getElementById("appointmentForm");
+  const message = document.getElementById("result");
 
-  function showMessage(msg, type) {
-    const messageDiv = document.getElementById('message');
-    messageDiv.textContent = msg;
-    messageDiv.className = 'message ' + type;
-    messageDiv.style.display = 'block';
-  }
+  let groupedSlots = {};
 
-  async function loadAvailableSlots() {
-    showMessage("Loading available slots...", "info");
+  fetch(N8N_WEBHOOK_URL_AVAILABLE_SLOTS)
+    .then(res => res.json())
+    .then(data => {
+      const slots = data.availableSlots || [];
+      groupedSlots = slots.reduce((acc, iso) => {
+        const [date, timeWithZone] = iso.split("T");
+        const time = timeWithZone.substring(0, 5); // HH:mm
+        acc[date] = acc[date] || [];
+        acc[date].push({ time, full: iso });
+        return acc;
+      }, {});
 
-    const datetimeInput = document.getElementById('datetime');
-    const submitButton = document.querySelector('#appointmentForm button[type="submit"]');
+      const availableDates = Object.keys(groupedSlots);
 
-    try {
-      const response = await axios.get(N8N_WEBHOOK_URL_AVAILABLE_SLOTS);
-      const data = response.data;
+      flatpickr("#date", {
+        dateFormat: "Y-m-d",
+        minDate: availableDates[0],
+        maxDate: availableDates[availableDates.length - 1],
+        enable: availableDates,
+        onChange: function(selectedDates, selectedDateStr) {
+          const selectedDate = selectedDateStr;
+          timeSelect.innerHTML = '<option value="">-- Uhrzeit wählen --</option>';
+          timeSelect.disabled = true;
+          submitBtn.disabled = true;
 
-      let availableSlotsStrings = (data && Array.isArray(data.availableSlots)) ? data.availableSlots : [];
-
-      console.log("Raw fetched available slots (from n8n):", availableSlotsStrings);
-
-      // --- Parsing ISO strings to Date objects for Flatpickr's 'enable' option ---
-      parsedAvailableDates = availableSlotsStrings.map(slotStr => {
-        const tempDate = new Date(slotStr);
-
-        if (isNaN(tempDate.getTime())) {
-          console.warn(`Flatpickr: Failed to parse date string from n8n: "${slotStr}". This slot will be ignored.`);
-          return null;
+          if (groupedSlots[selectedDate]) {
+            groupedSlots[selectedDate].forEach(slot => {
+              const opt = document.createElement("option");
+              opt.value = slot.full;
+              opt.textContent = slot.time;
+              timeSelect.appendChild(opt);
+            });
+            timeSelect.disabled = false;
+          }
         }
-
-        const cleanDate = new Date(
-          tempDate.getFullYear(),
-          tempDate.getMonth(),
-          tempDate.getDate(),
-          tempDate.getHours(),
-          tempDate.getMinutes(),
-          0,  // Set seconds to 0
-          0   // Set milliseconds to 0
-        );
-        return cleanDate;
-      }).filter(date => date !== null);
-      if (parsedAvailableDates.length > 0) {
-        console.group("Detailed view of Parsed and Cleaned Slots:");
-        parsedAvailableDates.forEach((d, index) => {
-          console.log(`Slot ${index}: ${d.toLocaleString()} | Seconds: ${d.getSeconds()} | Milliseconds: ${d.getMilliseconds()} | ISO: ${d.toISOString()}`);
-        });
-        console.groupEnd();
-      } else {
-        console.log("No available slots after parsing and cleaning.");
-      }
-
-
-      if (flatpickrInstance) {
-        flatpickrInstance.destroy();
-      }
-
-      flatpickrInstance = flatpickr(datetimeInput, {
-        enableTime: true,
-        noCalendar: false,
-        dateFormat: "Y-m-d H:i", // Display format: "YYYY-MM-DD HH:MM"
-        time_24hr: true,
-        minDate: new Date().fp_incr(1),
-        minuteIncrement: 30,
-        locale: (document.documentElement.lang === 'de' ? 'de' : 'en'),
-
-        disable: [
-          function(date) {
-            const localHour = date.getHours();
-            const localMinute = date.getMinutes();
-            const dayOfWeek = date.getDay();
-
-            if (localHour < 9 || localHour >= 17) {
-              return true;
-            }
-            if (localMinute % 30 !== 0) {
-              return true;
-            }
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-              return true;
-            }
-            return false;
-          }
-        ],
-        enable: parsedAvailableDates,
-
-        onReady: function(selectedDates, dateStr, instance) {
-          console.log("Flatpickr is ready. Selected dates:", selectedDates, "Date string:", dateStr);
-          if (parsedAvailableDates.length === 0) {
-            showMessage((document.documentElement.lang === 'de' ? 'Leider sind für die nächste Zeit keine Termine verfügbar.' : 'Unfortunately, there are no available slots for the near future.'), 'info');
-            datetimeInput.disabled = true;
-            submitButton.disabled = true;
-          } else {
-            showMessage('', '');
-            datetimeInput.disabled = false;
-            submitButton.disabled = false;
-          }
-        },
-        onOpen: function() {
-
-        },
-        onChange: function(selectedDates, dateStr, instance) {
-          if (selectedDates.length > 0) {
-            const selectedDate = selectedDates[0];
-            const cleanSelectedDate = new Date(
-              selectedDate.getFullYear(),
-              selectedDate.getMonth(),
-              selectedDate.getDate(),
-              selectedDate.getHours(),
-              selectedDate.getMinutes(),
-              0, 0
-            );
-
-            const isValidSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDate.getTime());
-            if (!isValidSelection) {
-              console.warn("User selected a date/time not in available slots. This should ideally not happen if enable/disable works correctly.");
-              // instance.clear();
-              showMessage((document.documentElement.lang === 'de' ? 'Bitte wählen Sie nur verfügbare Zeitfenster.' : 'Please select only available time slots.'), 'error');
-            } else {
-              console.log("Selected date/time IS in available slots:", dateStr);
-              showMessage('', '');
-            }
-          }
-        },
-        onParseConfig: function(config) {
-          let enableLog = "undefined/null";
-          if (config && typeof config.enable !== 'undefined' && config.enable !== null) {
-            if (Array.isArray(config.enable)) {
-              enableLog = config.enable.map(d => d.toLocaleString()).slice(0, 5);
-            } else {
-              enableLog = config.enable;
-            }
-          }
-          console.log("Flatpickr onParseConfig - config.enable (first 5 items or value):", enableLog);
-
-          let disableLog = "undefined/null";
-          if (config && typeof config.disable !== 'undefined' && config.disable !== null) {
-            if (Array.isArray(config.disable) || typeof config.disable === 'function') {
-              disableLog = config.disable;
-            } else {
-              disableLog = config.disable;
-            }
-          }
-          console.log("Flatpickr onParseConfig - config.disable:", disableLog);
-
-          return config;
-        },
       });
-
-    } catch (error) {
-      console.error('Error fetching available slots:', error);
-      showMessage((document.documentElement.lang === 'de' ? 'Konnte verfügbare Slots nicht laden. Bitte versuchen Sie es später erneut.' : 'Could not load available slots. Please try again later.'), "error");
-      datetimeInput.disabled = true;
-      submitButton.disabled = true;
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    const appointmentForm = document.getElementById('appointmentForm');
-    const datetimeInput = document.getElementById('datetime');
-    const submitButton = document.querySelector('#appointmentForm button[type="submit"]');
-
-    datetimeInput.disabled = true;
-    submitButton.disabled = true;
-
-    appointmentForm.addEventListener('submit', async function(event) {
-      event.preventDefault();
-
-      const selectedDateTime = flatpickrInstance.selectedDates[0];
-
-      if (!selectedDateTime) {
-        showMessage((document.documentElement.lang === 'de' ? 'Bitte wählen Sie ein Datum und eine Uhrzeit für Ihren Termin aus.' : "Please select a date and time for your appointment."), "error");
-        return;
-      }
-
-      const cleanSelectedDateTimeForValidation = new Date(
-        selectedDateTime.getFullYear(),
-        selectedDateTime.getMonth(),
-        selectedDateTime.getDate(),
-        selectedDateTime.getHours(),
-        selectedDateTime.getMinutes(),
-        0, 0
-      );
-      const isValidFinalSelection = parsedAvailableDates.some(d => d.getTime() === cleanSelectedDateTimeForValidation.getTime());
-
-      if (!isValidFinalSelection) {
-        showMessage((document.documentElement.lang === 'de' ? 'Die ausgewählte Zeit ist nicht verfügbar. Bitte wählen Sie eine verfügbare Zeit aus.' : 'The selected time is not available. Please choose an available slot.'), "error");
-        return;
-      }
-
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
-
-      data.telegramNotifications = !!data.telegramNotifications;
-      data.dateTime = selectedDateTime.toISOString().slice(0, 19);
-
-      submitButton.disabled = true;
-      showMessage((document.documentElement.lang === 'de' ? 'Ihre Buchung wird übermittelt...' : "Submitting your booking..."), "info");
-
-      try {
-        const response = await axios.post(N8N_WEBHOOK_URL_BOOK_APPOINTMENT, data);
-
-        const result = response.data[0] || {};
-
-        if (response.status >= 200 && response.status < 300) {
-          showMessage((document.documentElement.lang === 'de' ? 'Vielen Dank! Ihre Buchungsanfrage wurde empfangen. Unser Manager wird Sie zur Bestätigung kontaktieren.' : "Thank you! Your booking request has been received. Our manager will contact you for confirmation."), "success");
-          appointmentForm.reset();
-          datetimeInput.value = '';
-          await loadAvailableSlots();
-        } else {
-          const errorMessage = result.message || (document.documentElement.lang === 'de' ? `Termin konnte nicht erstellt werden. Status: ${response.status}` : `Failed to create appointment. Status: ${response.status}`);
-          showMessage(errorMessage, "error");
-          console.error("Booking failed response:", response.data);
-        }
-      } catch (error) {
-        console.error('Error submitting form:', error);
-        const errorMessage = error.response && error.response.data &&
-          (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data))
-          || (document.documentElement.lang === 'de' ? "Unbekannter Netzwerk- или Serverfehler." : "Unknown network or server error.");
-        showMessage((document.documentElement.lang === 'de' ? `Beim Senden Ihrer Anfrage ist ein Fehler aufgetreten: ${errorMessage}. Bitte versuchen Sie es erneut.` : `An error occurred while submitting your request: ${errorMessage}. Please try again.`), "error");
-      } finally {
-        submitButton.disabled = false;
-      }
+    })
+    .catch(err => {
+      console.error("Fehler beim Laden der Zeitfenster:", err);
+      document.getElementById("date").disabled = true;
     });
 
-    loadAvailableSlots();
+  dateInput.addEventListener("change", () => {
+    const selectedDate = dateInput.value;
+    timeSelect.innerHTML = '<option value="">-- Uhrzeit wählen --</option>';
+    timeSelect.disabled = true;
+    submitBtn.disabled = true;
+
+    if (groupedSlots[selectedDate]) {
+      groupedSlots[selectedDate].forEach(slot => {
+        const opt = document.createElement("option");
+        opt.value = slot.full;
+        opt.textContent = slot.time;
+        timeSelect.appendChild(opt);
+      });
+      timeSelect.disabled = false;
+    }
+  });
+
+  timeSelect.addEventListener("change", () => {
+    submitBtn.disabled = !timeSelect.value;
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = {
+      name: form.name.value,
+      email: form.email.value,
+      phone: form.phone.value,
+      dateTime: timeSelect.value,
+      telegramNotifications: form.telegramNotifications.checked,
+      telegramChatId: form.telegramChatId.value || null,
+      dataProcessingConsent: form.dataProcessingConsent.checked,
+      newsletterConsent: form.newsletterConsent.checked
+    };
+
+    submitBtn.disabled = true;
+    message.textContent = "Termin wird gebucht...";
+
+    try {
+      const res = await fetch(N8N_WEBHOOK_URL_BOOK_APPOINTMENT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+
+      if (!res.ok) throw new Error("Serverfehler");
+
+      message.textContent = "✅ Terminanfrage gesendet!";
+      form.reset();
+      timeSelect.innerHTML = '<option value="">-- Uhrzeit wählen --</option>';
+      timeSelect.disabled = true;
+      submitBtn.disabled = true;
+      document.getElementById("telegramNotifications").disabled = true;
+    } catch (err) {
+      console.error(err);
+      message.textContent = "❌ Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.";
+      submitBtn.disabled = false;
+    }
   });
 </script>
 </body>
